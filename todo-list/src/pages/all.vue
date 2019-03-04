@@ -1,0 +1,211 @@
+<template>
+  <div class="main">
+    <v-touch @tap="chooseDisplay">
+      <ul class="prior">
+        <li class="prior-opt" tag="0">
+          <i class="high fa fa-circle" aria-hidden="true"></i>
+          <span>高优</span>
+        </li>
+        <li class="prior-opt" tag="1">
+          <i class="medium fa fa-circle" aria-hidden="true"></i>
+          <span>中优</span>
+        </li>
+        <li class="prior-opt" tag="2">
+          <i class="low fa fa-circle" aria-hidden="true"></i>
+          <span>低优</span>
+        </li>
+      </ul>
+      <ul class="status">
+        <li class="status-opt" tag="0">
+          <i class="fa fa-play" aria-hidden="true"></i>
+          <span>进行中</span>
+        </li>
+        <li class="status-opt" tag="1">
+          <i class="fa fa-pause" aria-hidden="true"></i>
+          <span>待办</span>
+        </li>
+        <li class="status-opt" tag="2">
+          <i class="fa fa-stop" aria-hidden="true"></i>
+          <span>已完成</span>
+        </li>
+      </ul>
+    </v-touch>
+    <div class="list">
+      <template v-for="(item,index) in todoData" v-if="contains(item.prior, item.status)">
+        <v-touch class="item" :key="index" ref="touch" @panleft="showRight(index)" @panright="showLeft(index)">
+          <!--ref注册引用，以便直接访问这个组件-->
+          <!--这里的类名:high、medium和low有什么用-->
+          <i class="fa" :class="{'fa-play':item.status==='0','fa-pause':item.status==='1','fa-stop':item.status==='2',high: item.prior === '0', medium: item.prior === '1', low: item.prior === '2'}" aria-hidden="true"></i>
+          <p class="content">{{item.content}}</p>
+          <right-bar v-if="checkBar[index].isRightOn" :index="index" @enable-pan="doEdit(index)"></right-bar>
+          <left-bar v-if="checkBar[index].isLeftOn" :index="index" @enable-pan="doEdit(index)"></left-bar>
+        </v-touch>
+      </template>
+    </div>
+  </div>
+</template>
+
+<script>
+import LeftBar from "../components/leftbar.vue";
+import RightBar from "../components/rightbar.vue";
+import BUS from "../BUS.js";
+
+export default {
+  components: {
+    LeftBar,
+    RightBar
+  },
+  created() {
+    this.$store.commit("changeOptions", {
+      select: "all",
+      btnName: "Add",
+      btnClass: "add",
+      setCancel: false,
+      setBar: false
+    });
+  },
+  mounted() {
+    //挂载到根DOM元素之后
+    // console.log("mounted");
+    BUS.$on("enable-pan", () => {
+      //监听全局的自定义事件
+      // console.log("监听到enable-pan事件:event.target",event.target);
+      // console.log('this.todoData.length',this.todoData.length);
+      for (let i = 0, lens = this.todoData.length; i < lens; i++) {
+        // console.log('this.checkBar',this.checkBar);
+        this.checkBar[i].isLeftOn = false;
+        this.checkBar[i].isRightOn = false;
+      }
+      this.enablePan(this.todoData);
+      this.$store.commit("changeOptions", { setCancel: false, setBar: false });
+    });
+  },
+  destroyed() {
+    BUS.$off("enable-pan"); //移除自定义事件监听器,不然会多次触发监听事件！！！
+  },
+  data() {
+    return {
+      checkBarArr: [], //控制items的左滑和右滑是否显示，例：[{ isRightOn: false, isLeftOn: false },{ isRightOn: false, isLeftOn: false }]
+      priorChosen: {
+        "0": false,
+        "1": false,
+        "2": false
+      },
+      statusChosen: {
+        "0": false,
+        "1": false,
+        "2": false
+      }
+    };
+  },
+  methods: {
+    enablePan(checkBar) {
+      //刷新所有条目的pan事件可用
+      for (let i = 0; i < checkBar.length; i++) {
+        // console.log(this.$refs.touch);
+        this.$refs.touch[i].enable("pan"); //enable()是v-touch提供的事件
+      }
+    },
+    disablePan(checkBar) {
+      for (let i = 0; i < checkBar.length; i++) {
+        this.$refs.touch[i].disable("pan");
+      }
+    },
+    doEdit(i) {
+      // console.log("进入doEdit");
+      //点击当前条目的leftBar或rightBar,刷新其它条目的pan事件可用，当前被点击条目隐藏
+      this.enablePan(this.todoData); //传递this.todoData只是为了获得当前的length
+      this.checkBar[i].isLeftOn = false; //this.checkBar是通过计算属性返回的this.checkBarArr.
+      this.checkBar[i].isRightOn = false;
+    },
+    showLeft(i) {
+      this.checkBar[i].isLeftOn = true;
+      this.$store.commit("changeOptions", { setCancel: true, setBar: true });
+      this.disablePan(this.todoData); //所有都置为不可用
+    },
+    showRight(i) {
+      this.checkBar[i].isRightOn = true;
+      this.$store.commit("changeOptions", { setCancel: true, setBar: true });
+      this.disablePan(this.todoData);
+    },
+    chooseDisplay(e) {
+      let target;
+      if (e.target.classList.contains("prior-opt") ||e.target.classList.contains("status-opt")) {
+        target = e.target;
+      }
+      if (e.target.parentNode.classList.contains("prior-opt") ||e.target.parentNode.classList.contains("status-opt")) {
+        target = e.target.parentNode;
+      }
+      if (target) {
+        target.classList.toggle("sel");
+        let tag = target.getAttribute("tag");
+        if (target.classList.contains("prior-opt")) {
+          if (target.classList.contains("sel")) {
+            this.priorChosen[tag] = true;
+          } else {
+            this.priorChosen[tag] = false;
+          }
+        }
+        if (target.classList.contains("status-opt")) {
+          if (target.classList.contains("sel")) {
+            this.statusChosen[tag] = true;
+          } else {
+            this.statusChosen[tag] = false;
+          }
+        }
+      }
+    },
+    contains(prior, status) {
+      if (this.priorChosen[prior] || this.statusChosen[status]) {
+        return true
+       }
+      let noPrior = true
+      let noStatus = true
+      for (let i = 0, lens = Object.keys(this.priorChosen).length; i < lens; i++) {
+        if (this.priorChosen[i]) {
+            noPrior = false
+            break
+        }
+      }
+      for (let i = 0, lens = Object.keys(this.statusChosen).length; i < lens; i++) {
+        if (this.statusChosen[i]) {
+          noStatus = false
+          break
+        }
+      }
+      if (noPrior && noStatus) {
+        return true
+      }
+      return false
+    }
+  },
+  computed: {
+    todoData() {
+      // console.log('this.$store.state.todoData',this.$store.state.todoData);
+      return this.$store.state.todoData;
+    },
+    checkBar() {
+      for (let i = 0; i < this.todoData.length; i++) {
+        this.checkBarArr.splice(i, 1, { isRightOn: false, isLeftOn: false }); //i:startPos,deleteNums,addItems
+      }
+      return this.checkBarArr;
+    }
+  }
+};
+</script>
+
+<style lang="scss" scoped>
+@import "../static/common.scss";
+
+@include bar;
+.status > li > i {
+  color: #bbb;
+}
+.prior {
+  background-color: #fbdadf;
+}
+.status {
+  background-color: #d8f4dd;
+}
+
+</style>

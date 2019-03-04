@@ -1,0 +1,62 @@
+@mixin flex($justify:center, $align:center) {
+    display: flex;
+    justify-content: $justify;
+    align-items: $align;
+}
+
+@mixin fixed($pos) {
+    display: fixed;
+    left: 0;
+    right: 0;
+    $pos: 0;
+}
+
+.high {
+    color: #a00;
+}
+
+.medium {
+    color: #d8e118;
+}
+
+.low {
+    color: #050;
+}
+
+@mixin bar {
+    .prior,
+    .status {
+        @include flex(space-around);
+        height: 50px;
+        padding: 5px;
+        border: solid 1px #bbb;
+    }
+}
+
+li {
+    list-style: none;
+}
+
+[class$="-opt"] {
+    width: 92px;
+}
+
+.item {
+    @include flex(space-around);
+    height: 100px;
+    margin: 7px;
+    border: solid 1px #bbb;
+}
+
+.item>i {
+    width: 80px;
+}
+
+.item>p {
+    width: calc(100% - 80px);
+    flex: 1 1 auto;
+    text-align: left;
+    word-wrap: break-word;
+    word-break: break-all;
+    overflow: hidden;
+}
